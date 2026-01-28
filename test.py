@@ -44,17 +44,14 @@ div[data-testid="stRadio"] > div[role="radiogroup"] label[data-baseweb="radio"] 
 </style>
 """
 
-PLACEHOLDER = "— 선택해주세요 —"
-
 # ----------------------------
-# UPDATED Questionnaire (12)
+# Questionnaire (12) - NO placeholder option
 # ----------------------------
 QUESTIONS = [
     {
         "id": 1,
         "text": "조직에서 AI를 어떤 방식으로 사용하고 계신가요?",
         "options": [
-            PLACEHOLDER,
             "A. 사용이 제한되어 있음",
             "B. 개인적으로 사용중",
             "C. 조직 차원에서 적극적 도입중",
@@ -65,7 +62,6 @@ QUESTIONS = [
         "id": 2,
         "text": "조직에서 AI 에이전트를 활용하고 있나요?<br>(AI Agent: AI가 스스로 업무 맥락을 이해하고, 순서에 맞게 처리하여 사용자가 원하는 결과를 생성하는 AI 도구, 일반적으로 챗봇 형식으로 구성되어 있음)",
         "options": [
-            PLACEHOLDER,
             "A. 사용하지 않음",
             "B. 개인적으로 사용 중",
             "C. 팀 작업 일부에 적용",
@@ -76,7 +72,6 @@ QUESTIONS = [
         "id": 3,
         "text": "조직에서 AI를 활용하고 있는 ‘이유’가 무엇인가요?",
         "options": [
-            PLACEHOLDER,
             "A. 호기심/트렌드 대응",
             "B. 비용 절감(효율)",
             "C. 매출·고객경험 개선",
@@ -87,7 +82,6 @@ QUESTIONS = [
         "id": 4,
         "text": "조직에서 AI 활용 성과를 측정하는 방식이 있나요?",
         "options": [
-            PLACEHOLDER,
             "A. 없다",
             "B. 사례 기반 정성 평가",
             "C. KPI 일부로 관리",
@@ -98,7 +92,6 @@ QUESTIONS = [
         "id": 5,
         "text": "조직에서 AI를 안전하게 사용하기 위해 제작된 ‘가이드라인 혹은 거버넌스’가 있나요?",
         "options": [
-            PLACEHOLDER,
             "A. 문서화된 공식 기준이 없음",
             "B. 최소한의 규칙(민감정보, 저작권 등)이 존재하지만 심의 프로세스는 존재하지 않음",
             "C. 심의 주체/절차가 정의되어 있고 실제로 운영되고 있음",
@@ -109,7 +102,6 @@ QUESTIONS = [
         "id": 6,
         "text": "AI 활용을 위해 데이터를 체계적으로 준비하고 있나요?",
         "options": [
-            PLACEHOLDER,
             "A. 데이터가 흩어져 있고 품질 문제 큼",
             "B. 핵심 데이터는 있으나 표준화 부족",
             "C. 표준·품질·권한 체계 있음",
@@ -120,7 +112,6 @@ QUESTIONS = [
         "id": 7,
         "text": "조직 내 AI 도입 및 활용에 대한 반응은 어떤가요?",
         "options": [
-            PLACEHOLDER,
             "A. 불신 혹은 저항이 느껴짐",
             "B. 큰 반응 없음",
             "C. 일부 구성원 자발적 활용",
@@ -131,7 +122,6 @@ QUESTIONS = [
         "id": 8,
         "text": "조직에서 AI 제품을 구매해서 사용하고 계신가요? AI를 직접 개발 해서 사용하고 계신가요?",
         "options": [
-            PLACEHOLDER,
             "A. 조직에서 구매/개발 모두 사용하지 않음(구성원 개인 사용)",
             "B. 일부 AI 제품 구입 or 구성원 구매 비용 제공",
             "C. 일부 커스터마이징",
@@ -142,7 +132,6 @@ QUESTIONS = [
         "id": 9,
         "text": "현재 조직에서 AI와 시스템/업무 도구의 연동 수준은 어느정도 인가요?",
         "options": [
-            PLACEHOLDER,
             "A. AI를 독립적으로 사용",
             "B. 문서·메신저 수준 연동",
             "C. CRM/ERP/헬프데스크 등 핵심 시스템 연동",
@@ -153,7 +142,6 @@ QUESTIONS = [
         "id": 10,
         "text": "조직의 AI 역량 강화를 AI 교육을 지원하고 있으신가요?",
         "options": [
-            PLACEHOLDER,
             "A. 자발적 학습",
             "B. 전사 구성원 교육 중",
             "C. 일부 특정 직급 교육중(예. 리더교육)",
@@ -164,7 +152,6 @@ QUESTIONS = [
         "id": 11,
         "text": "팀원 혹은 부하직원의 업무 산출물에 대하여 AI를 정확하게 활용하였는지에 대한 검증을 하고 계십니까?",
         "options": [
-            PLACEHOLDER,
             "A. AI 활용을 인지하지 못하고 있었음",
             "B. 검증의 필요성은 느끼지만 실행하고 있지 않음",
             "C. 개인적인 검증 프로세스를 가지고 있음",
@@ -175,7 +162,6 @@ QUESTIONS = [
         "id": 12,
         "text": "본인의 AI 활용 정도는 어느 정도 입니까?",
         "options": [
-            PLACEHOLDER,
             "A. 사용하지 않음",
             "B. GPT, Gemini, Copilot을 활용한 자료 검색에 활용",
             "C. AI Agent 만들어서 이용 가능",
@@ -323,7 +309,10 @@ st.markdown(
 
 with st.sidebar:
     st.header("설정")
-    api_key_input = st.text_input("OPENAI_API_KEY (선택: 입력 또는 secrets/env 사용)", type="password")
+    api_key_input = st.text_input(
+        "OPENAI_API_KEY (선택: 입력 또는 secrets/env 사용)",
+        type="password",
+    )
     use_stream = st.toggle("스트리밍으로 출력(추천)", value=True)
 
 answers = []
@@ -335,21 +324,34 @@ st.subheader("설문 응답")
 for q in QUESTIONS:
     st.markdown(f"<div class='q-title'>{q['id']}) {q['text']}</div>", unsafe_allow_html=True)
 
-    selected = st.radio(
-        label="",
-        options=q["options"],
-        key=f"q{q['id']}",
-        label_visibility="collapsed",
-    )
+    # ✅ 기본값: 아무것도 선택되지 않은 상태
+    # (만약 Streamlit 버전이 낮아 index=None이 지원되지 않으면 TypeError가 날 수 있습니다.)
+    try:
+        selected = st.radio(
+            label="",
+            options=q["options"],
+            key=f"q{q['id']}",
+            index=None,
+            label_visibility="collapsed",
+        )
+    except TypeError:
+        # 호환성 fallback: index=None 미지원 환경일 경우 첫 항목이 선택되는 것을 막기 어렵습니다.
+        # 이 경우 Streamlit 업그레이드를 권장합니다.
+        selected = st.radio(
+            label="",
+            options=q["options"],
+            key=f"q{q['id']}",
+            label_visibility="collapsed",
+        )
 
-    is_answered = selected != PLACEHOLDER
+    is_answered = selected is not None
     if is_answered:
         answered_count += 1
         letter = selected.split(".")[0].strip() if "." in selected else ""
         answers.append(
             {
                 "question_id": q["id"],
-                "question": q["text"].replace("<br>", "\n"),  # 저장용은 줄바꿈으로
+                "question": q["text"].replace("<br>", "\n"),
                 "selected": selected,
                 "selected_letter": letter,
             }
@@ -373,7 +375,7 @@ all_answered = all(a["selected"] is not None for a in answers)
 with st.expander("내가 선택한 응답 요약 보기"):
     for a in answers:
         st.write(f"{a['question_id']}) {a['question']}")
-        st.write(f"→ {a['selected'] or PLACEHOLDER}")
+        st.write(f"→ {a['selected'] or '미선택'}")
         st.write("---")
 
 if st.button("분석 결과 생성", type="primary", disabled=not all_answered):
@@ -396,13 +398,21 @@ if st.button("분석 결과 생성", type="primary", disabled=not all_answered):
         else:
             buffer = ""
             stream_iter = call_gpt_analysis(api_key=api_key, user_payload=user_payload, stream=True)
+
             for event in stream_iter:
-                if getattr(event, "type", None) == "response.output_text.delta":
-                    delta = getattr(event, "delta", "") or ""
+                event_type = getattr(event, "type", None) or (event.get("type") if isinstance(event, dict) else None)
+
+                if event_type == "response.output_text.delta":
+                    delta = getattr(event, "delta", None)
+                    if delta is None and isinstance(event, dict):
+                        delta = event.get("delta", "")
+                    delta = delta or ""
                     buffer += delta
                     out.markdown(buffer)
-                elif getattr(event, "type", None) == "error":
+
+                elif event_type == "error":
                     out.error("스트리밍 중 오류가 발생했습니다.")
+
             if buffer.strip():
                 out.markdown(buffer)
             final_text = buffer
