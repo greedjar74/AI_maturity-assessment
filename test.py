@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import streamlit as st
 from openai import OpenAI
 
@@ -206,7 +207,7 @@ SYSTEM_PROMPT = """
 3) 왜 이 단계에 머무르는지(구조적 원인): 인센티브/책임소재/리스크 태도/데이터·IT/리더십·변화관리 관점
 4) 모순/리스크/기회: 예) 개인 사용 높으나 거버넌스 부재, 측정 부재로 확산 정체, 연동 부재로 성과 한계 등
 
-‘개선 포인트’에는 반드시 다음이 포함되어야 합니다.
+‘개선 포인트’에는 반드시 다음이 포함되어 합니다.
 - 로드맵을 제안해주세요:
 - 각 단계는 3~5개 액션으로 제한하고, 각 액션은 다음 형식을 1~2문장에 담으세요:
   “무엇을 / 왜 / 어떻게 / 성과지표(측정)”
@@ -249,6 +250,54 @@ TEMPERATURE = 0.3
 MAX_OUTPUT_TOKENS = 1400
 
 
+# ----------------------------
+# Scoring (A~D -> 1~4) + 4 bands
+# ----------------------------
+SCORE_MAP = {"A": 1, "B": 2, "C": 3, "D": 4}
+MAX_SCORE = 4 * len(QUESTIONS)  # 48
+
+# 4개 구간 (원하는대로 조정 가능)
+# 12~48 범위를 4등분: 12-21 / 22-30 / 31-39 / 40-48
+BANDS = [
+    (12, 21, "1단계: 탐색/제한적 활용"),
+    (22, 30, "2단계: 개인/팀 중심 확산"),
+    (31, 39, "3단계: 조직 차원 운영화"),
+    (40, 48, "4단계: 전사 혁신/재설계"),
+]
+
+
+def parse_letter(selected: str | None) -> str | None:
+    """'A. ...' -> 'A'"""
+    if not selected:
+        return None
+    m = re.match(r"^\s*([ABCD])\s*\.", selected.strip())
+    return m.group(1) if m else None
+
+
+def calc_total_and_band(answers: list[dict]) -> tuple[int | None, str | None]:
+    """
+    answers: [{"selected_letter": "A"|"B"|"C"|"D"|None, ...}, ...]
+    """
+    if not all(a.get("selected_letter") in SCORE_MAP for a in answers):
+        return None, None
+
+    total = 0
+    for a in answers:
+        total += SCORE_MAP[a["selected_letter"]]
+
+    band_label = None
+    for lo, hi, label in BANDS:
+        if lo <= total <= hi:
+            band_label = label
+            break
+
+    # 혹시 경계가 바뀌어 매칭 안 되면 마지막 방어
+    if band_label is None:
+        band_label = "구간 미정(설정 확인 필요)"
+
+    return total, band_label
+
+
 def get_api_key(user_input: str) -> str:
     if user_input and user_input.strip():
         return user_input.strip()
@@ -257,8 +306,17 @@ def get_api_key(user_input: str) -> str:
     return (os.getenv("OPENAI_API_KEY") or "").strip()
 
 
-def build_payload(answers: list[dict]) -> str:
-    payload = {"responses": answers}
+def build_payload(answers: list[dict], score_total: int | None, band_label: str | None) -> str:
+    payload = {
+        "responses": answers,
+        "score": {
+            "mapping": {"A": 1, "B": 2, "C": 3, "D": 4},
+            "total": score_total,
+            "max": MAX_SCORE,
+            "band": band_label,
+            "bands": [{"min": lo, "max": hi, "label": label} for lo, hi, label in BANDS],
+        },
+    }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -270,8 +328,8 @@ def call_gpt_analysis(api_key: str, user_payload: str, stream: bool):
         {
             "role": "user",
             "content": (
-                "아래 JSON은 설문 문항과 사용자의 선택 결과입니다. "
-                "이를 기반으로 진단 결과를 작성하세요.\n\n"
+                "아래 JSON은 설문 문항과 사용자의 선택 결과, 그리고 점수/구간 정보입니다. "
+                "진단 결과를 작성할 때, 점수/구간도 참고해 주세요.\n\n"
                 f"{user_payload}"
             ),
         },
@@ -315,17 +373,16 @@ with st.sidebar:
     )
     use_stream = st.toggle("스트리밍으로 출력(추천)", value=True)
 
-answers = []
-answered_count = 0
-
 st.divider()
 st.subheader("설문 응답")
+
+answers = []
+answered_count = 0
 
 for q in QUESTIONS:
     st.markdown(f"<div class='q-title'>{q['id']}) {q['text']}</div>", unsafe_allow_html=True)
 
-    # ✅ 기본값: 아무것도 선택되지 않은 상태
-    # (만약 Streamlit 버전이 낮아 index=None이 지원되지 않으면 TypeError가 날 수 있습니다.)
+    # 기본값: 아무것도 선택되지 않은 상태
     try:
         selected = st.radio(
             label="",
@@ -335,8 +392,7 @@ for q in QUESTIONS:
             label_visibility="collapsed",
         )
     except TypeError:
-        # 호환성 fallback: index=None 미지원 환경일 경우 첫 항목이 선택되는 것을 막기 어렵습니다.
-        # 이 경우 Streamlit 업그레이드를 권장합니다.
+        # 구버전 Streamlit fallback (권장: Streamlit 업그레이드)
         selected = st.radio(
             label="",
             options=q["options"],
@@ -344,38 +400,49 @@ for q in QUESTIONS:
             label_visibility="collapsed",
         )
 
-    is_answered = selected is not None
+    letter = parse_letter(selected)
+    is_answered = letter in SCORE_MAP
+
     if is_answered:
         answered_count += 1
-        letter = selected.split(".")[0].strip() if "." in selected else ""
-        answers.append(
-            {
-                "question_id": q["id"],
-                "question": q["text"].replace("<br>", "\n"),
-                "selected": selected,
-                "selected_letter": letter,
-            }
-        )
-    else:
-        answers.append(
-            {
-                "question_id": q["id"],
-                "question": q["text"].replace("<br>", "\n"),
-                "selected": None,
-                "selected_letter": None,
-            }
-        )
 
+    answers.append(
+        {
+            "question_id": q["id"],
+            "question": q["text"].replace("<br>", "\n"),
+            "selected": selected if is_answered else None,
+            "selected_letter": letter if is_answered else None,
+            "score": SCORE_MAP[letter] if is_answered else None,
+        }
+    )
+
+# 진행률
 st.divider()
 progress = answered_count / len(QUESTIONS)
 st.progress(progress, text=f"응답 완료: {answered_count}/{len(QUESTIONS)}")
 
 all_answered = all(a["selected"] is not None for a in answers)
 
+# 점수/구간 계산 (모든 문항 답했을 때만 유효)
+total_score, band_label = calc_total_and_band(answers)
+
+# 점수 섹션 표시
+st.subheader("점수 요약")
+col1, col2, col3 = st.columns([1, 1, 2])
+with col1:
+    st.metric("총점", "-" if total_score is None else f"{total_score} / {MAX_SCORE}")
+with col2:
+    st.metric("구간", "-" if band_label is None else band_label)
+with col3:
+    st.caption("구간 기준: " + " / ".join([f"{lo}-{hi}점: {label}" for lo, hi, label in BANDS]))
+
 with st.expander("내가 선택한 응답 요약 보기"):
     for a in answers:
         st.write(f"{a['question_id']}) {a['question']}")
-        st.write(f"→ {a['selected'] or '미선택'}")
+        if a["selected"] is None:
+            st.write("→ 미선택")
+        else:
+            st.write(f"→ {a['selected']}  (점수: {a['score']})")
         st.write("---")
 
 if st.button("분석 결과 생성", type="primary", disabled=not all_answered):
@@ -384,7 +451,7 @@ if st.button("분석 결과 생성", type="primary", disabled=not all_answered):
         st.error("OPENAI_API_KEY가 필요합니다. 사이드바에 입력하거나 secrets/env에 설정하세요.")
         st.stop()
 
-    user_payload = build_payload(answers)
+    user_payload = build_payload(answers, total_score, band_label)
 
     st.subheader("분석 결과")
     out = st.empty()
@@ -417,9 +484,18 @@ if st.button("분석 결과 생성", type="primary", disabled=not all_answered):
                 out.markdown(buffer)
             final_text = buffer
 
+        # 점수 정보를 결과 앞에 붙여서 다운로드에도 포함
+        score_header = (
+            f"# 점수 요약\n"
+            f"- 총점: {total_score} / {MAX_SCORE}\n"
+            f"- 구간: {band_label}\n"
+            f"- 구간 기준: " + " / ".join([f"{lo}-{hi}점({label})" for lo, hi, label in BANDS]) + "\n\n"
+        )
+        downloadable = score_header + (final_text or "")
+
         st.download_button(
             "결과 다운로드 (.md)",
-            data=final_text,
+            data=downloadable,
             file_name="ai_maturity_report.md",
             mime="text/markdown",
         )
